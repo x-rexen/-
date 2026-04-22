@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>心炮彈 · 心律壓力模擬</title>
+    <title>心炮彈</title>
     <style>
         * {
             margin: 0;
@@ -266,34 +266,40 @@
 
         .btn {
             flex: 1;
-            background: #143b4a;
-            border: none;
+            background: transparent;
+            border: 1.5px solid #2fafc0;
             border-radius: 70px;
             padding: 16px 6px;
             font-size: 1.25rem;
             font-weight: 600;
-            color: #e1f9ff;
-            border-bottom: 4px solid #19a7a7;
-            border-right: 1px solid #2dafc0;
-            box-shadow: 0 7px 0 #08212b, 0 5px 12px black;
+            color: #dcf5ff;
+            box-shadow: 0 0 12px #0ac0c040;
             cursor: pointer;
-            transition: all 0.07s;
+            transition: all 0.1s;
             text-align: center;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(8px);
             letter-spacing: 2px;
             touch-action: manipulation;
+            background: rgba(10, 40, 50, 0.25);
         }
 
         .btn:active {
-            transform: translateY(5px);
-            box-shadow: 0 2px 0 #08212b, 0 4px 10px black;
-            border-bottom-width: 2px;
+            background: rgba(20, 90, 110, 0.4);
+            border-color: #6ee7ff;
+            box-shadow: 0 0 18px #1ad4d4;
+            transform: scale(0.98);
         }
 
         .btn.reset-style {
-            background: #173b47;
-            border-bottom-color: #bd8b3a;
-            border-right-color: #dbb267;
+            border-color: #bd9a5a;
+            color: #f3e5c9;
+            box-shadow: 0 0 12px #b8903a60;
+            background: rgba(40, 35, 20, 0.2);
+        }
+
+        .btn.reset-style:active {
+            background: rgba(120, 90, 40, 0.35);
+            border-color: #eebb55;
         }
 
         .footer-watermark {
@@ -400,38 +406,45 @@
         const baseY = canvasHeight/2 + 4;
 
         function mapHeartRateToPhase(hr) {
-            return (hr / 60) * 0.18;
+            return (hr / 60) * 0.22;
         }
 
         function generateWaveY(x, phaseOffset, hr, arrhythmia) {
-            const t = (x * 0.18 + phaseOffset) % (Math.PI * 2);
+            const t = (x * 0.2 + phaseOffset) % (Math.PI * 2.5);
             let y = baseY;
 
+            let noise1 = Math.sin(x * 0.5 + phaseOffset * 1.7) * 4.5;
+            let noise2 = Math.cos(x * 0.3 + phaseOffset * 0.9) * 3.2;
+            let jitter = (Math.sin(x * 1.8) * 2.2) + (Math.cos(x * 2.3) * 2.8);
+
             if (arrhythmia === 'tachycardia') {
-                const fastT = (x * 0.28 + phaseOffset * 2.0) % (Math.PI * 2);
-                y = baseY - 10 + 12 * Math.sin(fastT * 1.4) + 40 * Math.exp(-Math.pow((fastT - Math.PI) % (2*Math.PI) - 0.6, 2) / 0.5) 
-                    + 10 * Math.sin(fastT * 3.0) * Math.exp(-0.3 * fastT);
-                return Math.min(baseY + 40, Math.max(baseY - 36, y));
+                const fastT = (x * 0.32 + phaseOffset * 2.3) % (Math.PI * 2);
+                y = baseY - 12 + 16 * Math.sin(fastT * 1.7) + 44 * Math.exp(-Math.pow((fastT - Math.PI) % (2*Math.PI) - 0.5, 2) / 0.4) 
+                    + noise1 * 1.2 + jitter * 1.3;
+                if ((x * 0.7) % 20 < 4) y += 7;
+                return Math.min(baseY + 48, Math.max(baseY - 40, y));
             }
             if (arrhythmia === 'bradycardia') {
-                const slowT = (x * 0.10 + phaseOffset * 0.6) % (Math.PI * 2);
-                y = baseY + 8 + 12 * Math.sin(slowT * 0.7) + 44 * Math.exp(-Math.pow((slowT - 2.0) % (2*Math.PI), 2) / 1.0);
-                return Math.min(baseY + 32, Math.max(baseY - 24, y));
+                const slowT = (x * 0.11 + phaseOffset * 0.8) % (Math.PI * 2);
+                y = baseY + 10 + 14 * Math.sin(slowT * 0.9) + 50 * Math.exp(-Math.pow((slowT - 2.2) % (2*Math.PI), 2) / 1.1)
+                    + noise2 * 1.4 + Math.sin(x*0.4)*3;
+                return Math.min(baseY + 36, Math.max(baseY - 26, y));
             }
             if (arrhythmia === 'afib') {
-                const fibT = (x * 0.23 + phaseOffset) % (Math.PI * 2);
-                let irregular = Math.sin(fibT * 2.9) * 7 + Math.sin(fibT * 5.3) * 4;
-                y = baseY + irregular + 38 * Math.exp(-Math.pow((fibT - 1.2) % (2*Math.PI), 2) / 0.7) 
-                    + 12 * Math.sin(fibT * 3.5) * Math.exp(-0.2 * fibT);
-                if (Math.random() > 0.7) y += 10;
-                return Math.min(baseY + 38, Math.max(baseY - 32, y));
+                const fibT = (x * 0.28 + phaseOffset * 1.2) % (Math.PI * 2);
+                let irr = Math.sin(fibT * 3.4) * 9 + Math.sin(fibT * 6.1) * 5 + Math.cos(fibT*2.0)*4;
+                y = baseY + irr + 42 * Math.exp(-Math.pow((fibT - 1.0) % (2*Math.PI), 2) / 0.8) 
+                    + jitter * 1.8;
+                if (Math.random() > 0.7) y += 14;
+                return Math.min(baseY + 42, Math.max(baseY - 38, y));
             }
 
-            const normalT = (x * 0.18 + phaseOffset) % (Math.PI * 2);
-            let nY = baseY - 4 + 46 * Math.exp(-Math.pow((normalT - 0.8) % (2*Math.PI), 2) / 0.35) 
-                    + 18 * Math.sin(normalT * 1.8) * Math.exp(-0.7 * normalT)
-                    + 6 * Math.sin(normalT * 4.2);
-            return Math.min(baseY + 34, Math.max(baseY - 28, nY));
+            const normalT = (x * 0.2 + phaseOffset) % (Math.PI * 2);
+            let nY = baseY - 2 + 48 * Math.exp(-Math.pow((normalT - 0.8) % (2*Math.PI), 2) / 0.42) 
+                    + 20 * Math.sin(normalT * 2.2) * Math.exp(-0.6 * normalT)
+                    + 8 * Math.sin(normalT * 4.7) + noise1 * 1.0 + jitter * 1.0;
+            if ((x * 0.3) % 25 < 5) nY += 5;
+            return Math.min(baseY + 36, Math.max(baseY - 30, nY));
         }
 
         function drawECG() {
@@ -468,18 +481,18 @@
                 }
             }
 
-            ctx.lineWidth = 3.6;
-            ctx.strokeStyle = arrhythmiaActive ? '#ff8866' : '#0ef7e0';
-            ctx.shadowColor = arrhythmiaActive ? '#ff3f1a' : '#1effe0';
+            ctx.lineWidth = 3.8;
+            ctx.strokeStyle = arrhythmiaActive ? '#ff9f7a' : '#1effdd';
+            ctx.shadowColor = arrhythmiaActive ? '#ff4f2a' : '#1effe0';
             ctx.shadowBlur = 18;
             ctx.stroke();
             ctx.shadowBlur = 0;
 
             ctx.beginPath();
             ctx.lineWidth = 1.8;
-            ctx.strokeStyle = arrhythmiaActive ? '#ffbcab' : '#a0faff';
+            ctx.strokeStyle = arrhythmiaActive ? '#ffcfbf' : '#b2fff0';
             ctx.shadowBlur = 8;
-            ctx.shadowColor = '#00c0b0';
+            ctx.shadowColor = '#00c8b8';
             ctx.stroke();
             ctx.shadowBlur = 0;
 
@@ -585,13 +598,13 @@
             if (!arrhythmiaActive) {
                 const stress = parseInt(stressSlider.value, 10);
                 let natural = 68 + Math.floor(stress * 0.40);
-                currentHR = Math.min(145, Math.max(50, natural + (Math.random() * 7 - 3)));
+                currentHR = Math.min(145, Math.max(50, natural + (Math.random() * 9 - 4)));
             } else {
                 applyStressToHeartRate();
             }
             hrDisplay.textContent = Math.round(currentHR);
             refreshDisplay();
-        }, 750);
+        }, 700);
     })();
 </script>
 </body>
