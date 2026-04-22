@@ -266,40 +266,34 @@
 
         .btn {
             flex: 1;
-            background: transparent;
-            border: 1.5px solid #2fafc0;
+            background: #143b4a;
+            border: none;
             border-radius: 70px;
             padding: 16px 6px;
             font-size: 1.25rem;
             font-weight: 600;
-            color: #dcf5ff;
-            box-shadow: 0 0 12px #0ac0c040;
+            color: #e1f9ff;
+            border-bottom: 4px solid #19a7a7;
+            border-right: 1px solid #2dafc0;
+            box-shadow: 0 7px 0 #08212b, 0 5px 12px black;
             cursor: pointer;
-            transition: all 0.1s;
+            transition: all 0.07s;
             text-align: center;
-            backdrop-filter: blur(8px);
+            backdrop-filter: blur(10px);
             letter-spacing: 2px;
             touch-action: manipulation;
-            background: rgba(10, 40, 50, 0.25);
         }
 
         .btn:active {
-            background: rgba(20, 90, 110, 0.4);
-            border-color: #6ee7ff;
-            box-shadow: 0 0 18px #1ad4d4;
-            transform: scale(0.98);
+            transform: translateY(5px);
+            box-shadow: 0 2px 0 #08212b, 0 4px 10px black;
+            border-bottom-width: 2px;
         }
 
         .btn.reset-style {
-            border-color: #bd9a5a;
-            color: #f3e5c9;
-            box-shadow: 0 0 12px #b8903a60;
-            background: rgba(40, 35, 20, 0.2);
-        }
-
-        .btn.reset-style:active {
-            background: rgba(120, 90, 40, 0.35);
-            border-color: #eebb55;
+            background: #173b47;
+            border-bottom-color: #bd8b3a;
+            border-right-color: #dbb267;
         }
 
         .footer-watermark {
@@ -366,8 +360,7 @@
             </div>
         </div>
         <div class="button-group">
-            <button class="btn" id="simulateArrhythmiaBtn">模擬異常</button>
-            <button class="btn reset-style" id="resetDefaultBtn">重置</button>
+            <button class="btn reset-style" id="resetDefaultBtn">重置壓力</button>
         </div>
     </div>
     <div class="footer-watermark">心炮彈 · 壓力模擬器</div>
@@ -390,10 +383,10 @@
         const hrvValue = document.getElementById('hrvValue');
         const intensityText = document.getElementById('intensityText');
 
-        const simulateBtn = document.getElementById('simulateArrhythmiaBtn');
         const resetBtn = document.getElementById('resetDefaultBtn');
 
         let currentHR = 72;
+        let targetHR = 72;
         let arrhythmiaActive = false;
         let arrhythmiaType = 'none';
 
@@ -404,46 +397,59 @@
 
         let phase = 0;
         const baseY = canvasHeight/2 + 4;
+        
+        let noiseOffset1 = 0;
+        let noiseOffset2 = 0;
+        let noiseOffset3 = 0;
+        let morphFactor = 0;
 
         function mapHeartRateToPhase(hr) {
-            return (hr / 60) * 0.22;
+            return (hr / 60) * 0.16;
         }
 
-        function generateWaveY(x, phaseOffset, hr, arrhythmia) {
-            const t = (x * 0.2 + phaseOffset) % (Math.PI * 2.5);
+        function generateWaveY(x, phaseOffset, hr, arrType) {
+            const t = (x * 0.16 + phaseOffset) % (Math.PI * 2.4);
             let y = baseY;
-
-            let noise1 = Math.sin(x * 0.5 + phaseOffset * 1.7) * 4.5;
-            let noise2 = Math.cos(x * 0.3 + phaseOffset * 0.9) * 3.2;
-            let jitter = (Math.sin(x * 1.8) * 2.2) + (Math.cos(x * 2.3) * 2.8);
-
-            if (arrhythmia === 'tachycardia') {
-                const fastT = (x * 0.32 + phaseOffset * 2.3) % (Math.PI * 2);
-                y = baseY - 12 + 16 * Math.sin(fastT * 1.7) + 44 * Math.exp(-Math.pow((fastT - Math.PI) % (2*Math.PI) - 0.5, 2) / 0.4) 
-                    + noise1 * 1.2 + jitter * 1.3;
-                if ((x * 0.7) % 20 < 4) y += 7;
-                return Math.min(baseY + 48, Math.max(baseY - 40, y));
-            }
-            if (arrhythmia === 'bradycardia') {
-                const slowT = (x * 0.11 + phaseOffset * 0.8) % (Math.PI * 2);
-                y = baseY + 10 + 14 * Math.sin(slowT * 0.9) + 50 * Math.exp(-Math.pow((slowT - 2.2) % (2*Math.PI), 2) / 1.1)
-                    + noise2 * 1.4 + Math.sin(x*0.4)*3;
-                return Math.min(baseY + 36, Math.max(baseY - 26, y));
-            }
-            if (arrhythmia === 'afib') {
-                const fibT = (x * 0.28 + phaseOffset * 1.2) % (Math.PI * 2);
-                let irr = Math.sin(fibT * 3.4) * 9 + Math.sin(fibT * 6.1) * 5 + Math.cos(fibT*2.0)*4;
-                y = baseY + irr + 42 * Math.exp(-Math.pow((fibT - 1.0) % (2*Math.PI), 2) / 0.8) 
-                    + jitter * 1.8;
-                if (Math.random() > 0.7) y += 14;
+            
+            const noise1 = Math.sin(x * 0.08 + noiseOffset1) * 1.8;
+            const noise2 = Math.cos(x * 0.12 + noiseOffset2) * 1.2;
+            const noise3 = Math.sin(x * 0.04 + noiseOffset3) * 2.0;
+            
+            const stressFactor = stressSlider.value / 100;
+            const variability = 0.8 + stressFactor * 1.5;
+            
+            if (arrType === 'tachycardia') {
+                const fastT = (x * 0.28 + phaseOffset * 2.2) % (Math.PI * 2);
+                const qrs = 42 * Math.exp(-Math.pow((fastT - 0.9) % (2*Math.PI), 2) / 0.3);
+                const tWave = 16 * Math.sin(fastT * 1.6) * Math.exp(-0.4 * fastT);
+                y = baseY - 8 + qrs + tWave + noise1 * 1.5 + noise2;
                 return Math.min(baseY + 42, Math.max(baseY - 38, y));
             }
+            if (arrType === 'bradycardia') {
+                const slowT = (x * 0.09 + phaseOffset * 0.7) % (Math.PI * 2.2);
+                const qrs = 48 * Math.exp(-Math.pow((slowT - 1.2) % (2*Math.PI), 2) / 0.6);
+                y = baseY + 6 + qrs + 10 * Math.sin(slowT * 0.9) + noise2 * 1.8;
+                return Math.min(baseY + 35, Math.max(baseY - 28, y));
+            }
+            if (arrType === 'afib') {
+                const fibT = (x * 0.21 + phaseOffset * 1.4) % (Math.PI * 2.4);
+                const qrs = 36 * Math.exp(-Math.pow((fibT - 1.0) % (2*Math.PI), 2) / 0.45);
+                const fibNoise = Math.sin(fibT * 7.0) * 5 + Math.cos(fibT * 11.0) * 3;
+                y = baseY + fibNoise * variability + qrs + noise3 * 2.2;
+                return Math.min(baseY + 40, Math.max(baseY - 35, y));
+            }
 
-            const normalT = (x * 0.2 + phaseOffset) % (Math.PI * 2);
-            let nY = baseY - 2 + 48 * Math.exp(-Math.pow((normalT - 0.8) % (2*Math.PI), 2) / 0.42) 
-                    + 20 * Math.sin(normalT * 2.2) * Math.exp(-0.6 * normalT)
-                    + 8 * Math.sin(normalT * 4.7) + noise1 * 1.0 + jitter * 1.0;
-            if ((x * 0.3) % 25 < 5) nY += 5;
+            const normalT = (x * 0.16 + phaseOffset) % (Math.PI * 2.2);
+            const pWave = 6 * Math.sin(normalT * 0.5) * Math.exp(-0.3 * normalT);
+            const qrs = 48 * Math.exp(-Math.pow((normalT - 0.7) % (2*Math.PI), 2) / 0.25);
+            const tWave = 18 * Math.sin(normalT * 1.4) * Math.exp(-0.5 * normalT);
+            
+            let nY = baseY - 2 + pWave + qrs + tWave + noise1 * 1.2 + noise2 * 0.8;
+            
+            if (stressFactor > 0.6) {
+                nY += Math.sin(x * 0.05 + morphFactor) * 4 * stressFactor;
+            }
+            
             return Math.min(baseY + 36, Math.max(baseY - 30, nY));
         }
 
@@ -451,27 +457,32 @@
             ctx.clearRect(0, 0, canvasWidth, canvasHeight);
             
             ctx.beginPath();
-            ctx.strokeStyle = '#1e4a55';
-            ctx.lineWidth = 0.8;
-            for (let i = 0; i < canvasWidth; i+=20) {
+            ctx.strokeStyle = '#1a3f4a';
+            ctx.lineWidth = 0.6;
+            for (let i = 0; i < canvasWidth; i+=25) {
                 ctx.moveTo(i, 0);
                 ctx.lineTo(i, canvasHeight);
             }
-            for (let j = 0; j < canvasHeight; j+=20) {
+            for (let j = 0; j < canvasHeight; j+=25) {
                 ctx.moveTo(0, j);
                 ctx.lineTo(canvasWidth, j);
             }
             ctx.stroke();
 
-            const hr = currentHR;
+            const hr = Math.max(38, Math.min(178, currentHR));
             const step = mapHeartRateToPhase(hr);
             phase = (phase + step) % (Math.PI * 4);
+            
+            noiseOffset1 = (noiseOffset1 + 0.012) % (Math.PI * 2);
+            noiseOffset2 = (noiseOffset2 + 0.008) % (Math.PI * 2);
+            noiseOffset3 = (noiseOffset3 + 0.018) % (Math.PI * 2);
+            morphFactor = (morphFactor + 0.005) % (Math.PI * 2);
 
             ctx.beginPath();
             let first = true;
             const arrState = arrhythmiaActive ? arrhythmiaType : 'none';
             
-            for (let x = 0; x < canvasWidth; x+=1.5) {
+            for (let x = 0; x < canvasWidth; x+=1.2) {
                 const yVal = generateWaveY(x, phase, hr, arrState);
                 if (first) {
                     ctx.moveTo(x, yVal);
@@ -481,18 +492,24 @@
                 }
             }
 
-            ctx.lineWidth = 3.8;
-            ctx.strokeStyle = arrhythmiaActive ? '#ff9f7a' : '#1effdd';
-            ctx.shadowColor = arrhythmiaActive ? '#ff4f2a' : '#1effe0';
-            ctx.shadowBlur = 18;
+            ctx.lineWidth = 3.0;
+            const stressVal = stressSlider.value;
+            let waveColor = '#0ef7e0';
+            if (arrhythmiaActive) {
+                waveColor = '#ff8866';
+            } else if (stressVal > 70) {
+                waveColor = '#ffb347';
+            }
+            
+            ctx.strokeStyle = waveColor;
+            ctx.shadowColor = arrhythmiaActive ? '#ff3f1a' : (stressVal > 70 ? '#ffa040' : '#1effe0');
+            ctx.shadowBlur = 16;
             ctx.stroke();
-            ctx.shadowBlur = 0;
-
+            
             ctx.beginPath();
-            ctx.lineWidth = 1.8;
-            ctx.strokeStyle = arrhythmiaActive ? '#ffcfbf' : '#b2fff0';
-            ctx.shadowBlur = 8;
-            ctx.shadowColor = '#00c8b8';
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = arrhythmiaActive ? '#ffbcab' : '#a0faff';
+            ctx.shadowBlur = 6;
             ctx.stroke();
             ctx.shadowBlur = 0;
 
@@ -505,6 +522,8 @@
             let rhythmText = '竇性心律';
             let tagColor = '#2ad4c0';
             let alertContent = '心律正常 無異常';
+            
+            const stressVal = stressSlider.value;
             
             if (arrhythmiaActive) {
                 if (arrhythmiaType === 'tachycardia') {
@@ -532,42 +551,50 @@
                 rhythmLabel.textContent = '竇性心律';
                 rhythmTag.style.borderLeftColor = '#2ad4c0';
                 rhythmTag.style.boxShadow = '0 0 6px #00000070';
-                alertMessage.textContent = '心律正常 無異常';
+                alertMessage.textContent = stressVal > 70 ? '壓力偏高 注意休息' : '心律正常 無異常';
             }
 
-            const sliderVal = parseInt(stressSlider.value, 10);
-            stressPercent.textContent = sliderVal;
+            stressPercent.textContent = stressVal;
             let levelLabel = '';
-            let hrvCalc = 64 - Math.floor(sliderVal * 0.46);
-            if (sliderVal < 25) { levelLabel = '輕度負荷'; intensityText.textContent = '低'; }
-            else if (sliderVal < 50) { levelLabel = '中度負荷'; intensityText.textContent = '中低'; }
-            else if (sliderVal < 75) { levelLabel = '高負荷'; intensityText.textContent = '中高'; }
-            else { levelLabel = '極限負荷'; intensityText.textContent = '高'; }
+            let hrvCalc = 64 - Math.floor(stressVal * 0.48);
+            
+            if (stressVal < 25) { 
+                levelLabel = '輕度負荷'; 
+                intensityText.textContent = '低'; 
+            }
+            else if (stressVal < 50) { 
+                levelLabel = '中度負荷'; 
+                intensityText.textContent = '中低'; 
+            }
+            else if (stressVal < 75) { 
+                levelLabel = '高負荷'; 
+                intensityText.textContent = '中高'; 
+            }
+            else { 
+                levelLabel = '極限負荷'; 
+                intensityText.textContent = '高'; 
+            }
+            
             pressureLevelDisplay.textContent = levelLabel;
-            hrvValue.textContent = Math.max(12, hrvCalc);
+            hrvValue.textContent = Math.max(12, hrvCalc + Math.floor(Math.random() * 5 - 2));
         }
 
         function applyStressToHeartRate() {
             const stress = parseInt(stressSlider.value, 10);
-            let baseHR = 68 + Math.floor(stress * 0.44);
+            let baseHR = 68 + Math.floor(stress * 0.46);
+            
             if (arrhythmiaActive) {
-                if (arrhythmiaType === 'tachycardia') baseHR = 130 + Math.floor(stress * 0.32);
-                else if (arrhythmiaType === 'bradycardia') baseHR = 42 + Math.floor(stress * 0.10);
-                else if (arrhythmiaType === 'afib') baseHR = 88 + Math.floor(stress * 0.40);
-                else baseHR = 90;
+                if (arrhythmiaType === 'tachycardia') baseHR = 128 + Math.floor(stress * 0.35);
+                else if (arrhythmiaType === 'bradycardia') baseHR = 44 + Math.floor(stress * 0.12);
+                else if (arrhythmiaType === 'afib') baseHR = 85 + Math.floor(stress * 0.42);
             }
-            currentHR = Math.min(178, Math.max(38, baseHR));
-            refreshDisplay();
+            
+            targetHR = Math.min(175, Math.max(38, baseHR));
         }
 
         function onStressSliderChange() {
             applyStressToHeartRate();
-        }
-
-        function triggerArrhythmia(type) {
-            arrhythmiaActive = true;
-            arrhythmiaType = type;
-            applyStressToHeartRate();
+            refreshDisplay();
         }
 
         function resetToSinus() {
@@ -575,15 +602,10 @@
             arrhythmiaType = 'none';
             stressSlider.value = 22;
             applyStressToHeartRate();
+            refreshDisplay();
         }
 
         stressSlider.addEventListener('input', onStressSliderChange);
-
-        simulateBtn.addEventListener('click', function() {
-            const types = ['tachycardia', 'bradycardia', 'afib'];
-            const chosen = types[Math.floor(Math.random() * types.length)];
-            triggerArrhythmia(chosen);
-        });
 
         resetBtn.addEventListener('click', function() {
             resetToSinus();
@@ -597,14 +619,50 @@
         setInterval(function() {
             if (!arrhythmiaActive) {
                 const stress = parseInt(stressSlider.value, 10);
-                let natural = 68 + Math.floor(stress * 0.40);
-                currentHR = Math.min(145, Math.max(50, natural + (Math.random() * 9 - 4)));
-            } else {
-                applyStressToHeartRate();
+                let natural = 68 + Math.floor(stress * 0.44);
+                targetHR = Math.min(150, Math.max(50, natural));
             }
+            
+            const randomFluctuation = (Math.random() - 0.5) * 8;
+            const hrFluctuation = (Math.random() - 0.5) * 4;
+            
+            if (!arrhythmiaActive) {
+                const stressVal = stressSlider.value;
+                if (stressVal > 70) {
+                    if (Math.random() < 0.002) {
+                        arrhythmiaActive = true;
+                        arrhythmiaType = 'tachycardia';
+                    }
+                } else if (stressVal < 15) {
+                    if (Math.random() < 0.001) {
+                        arrhythmiaActive = true;
+                        arrhythmiaType = 'bradycardia';
+                    }
+                }
+            } else {
+                if (Math.random() < 0.01) {
+                    arrhythmiaActive = false;
+                    arrhythmiaType = 'none';
+                }
+            }
+            
+            if (arrhythmiaActive) {
+                if (arrhythmiaType === 'tachycardia') {
+                    targetHR = 125 + Math.floor(stressSlider.value * 0.3) + hrFluctuation;
+                } else if (arrhythmiaType === 'bradycardia') {
+                    targetHR = 45 + Math.floor(stressSlider.value * 0.1) + hrFluctuation * 0.5;
+                } else if (arrhythmiaType === 'afib') {
+                    targetHR = 80 + Math.floor(stressSlider.value * 0.4) + hrFluctuation * 1.5;
+                }
+                targetHR = Math.min(178, Math.max(38, targetHR));
+            }
+            
+            currentHR = currentHR * 0.7 + targetHR * 0.3 + randomFluctuation * 0.3;
+            currentHR = Math.min(178, Math.max(38, currentHR));
+            
             hrDisplay.textContent = Math.round(currentHR);
             refreshDisplay();
-        }, 700);
+        }, 600);
     })();
 </script>
 </body>
